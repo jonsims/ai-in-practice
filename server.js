@@ -423,13 +423,17 @@ TIME — what does the room use AI for that takes too long?
 EFFORT — what does the room use AI for that's repetitive drudge?
 SKILL — what does the room use AI to reach just beyond their own ability?
 
-For each of the three frames, write ONE short sentence (under 18 words) grounded in actual submissions. Then write ONE closing line (under 22 words) that names the thing the room is quietly good at that they probably didn't notice about themselves. The closing line should make the room go briefly quiet.
+IMPORTANT — audience register: a meaningful share of the room is new to AI. Write so a curious newcomer can follow every word. Do NOT use jargon or insider terms. Specifically avoid: "LLM," "prompt engineering," "RAG," "agentic," "tokens," "context window," "fine-tuning," "zero-shot," "chain-of-thought." If you reference a tool, name it plainly (e.g. "ChatGPT, which is a chatbot" on first mention). Favor everyday verbs: reading, writing, organizing, explaining, drafting, checking.
+
+For each of the three frames, write TWO or THREE sentences (aim for 35-55 words per frame). The first sentence names the pattern in plain English with a specific example pulled from the submissions. The second (and optional third) sentence makes the pattern land — either by naming the feeling behind it, or by explaining why it matters.
+
+Then write ONE closing line (25-35 words) that names the thing the room is quietly good at that they probably didn't notice about themselves. Warm, specific, no buzzwords. Should make the room go briefly quiet.
 
 Return ONLY valid JSON with no extra text, no markdown, no code fences:
 {"time":"...","effort":"...","skill":"...","closing":"..."}`;
 
     const message = await withTimeout(
-      anthropic.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }),
+      anthropic.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 900, messages: [{ role: 'user', content: prompt }] }),
       30000
     );
 
