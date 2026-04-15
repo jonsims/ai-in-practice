@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display — AI in Practice</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #006341; color: white; height: 100vh; overflow: hidden; }
+
+    .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 48px 56px; animation: fadeIn 0.6s ease; }
+    .screen.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Collection ── */
+    #screen-collection { background: #006341; text-align: center; gap: 24px; }
+    #screen-collection img { width: 280px; height: 280px; border-radius: 16px; }
+    #screen-collection h2 { font-size: 2rem; opacity: 0.9; font-weight: 600; }
+    .counter { font-size: 5rem; font-weight: 800; line-height: 1; }
+    .counter-label { font-size: 1.5rem; opacity: 0.65; letter-spacing: 0.08em; text-transform: uppercase; }
+    .fallback-url { font-size: 1.6rem; opacity: 0.6; letter-spacing: 0.03em; margin-top: 8px; font-family: monospace; }
+
+    /* ── Bar chart (shared by role + arc) ── */
+    .chart-screen { background: #F5F5F2; color: #1A1A1A; align-items: flex-start; justify-content: center; gap: 28px; }
+    .chart-screen h2 { font-size: 2.4rem; font-weight: 800; color: #006341; align-self: center; }
+    .chart-screen .sub { font-size: 1.3rem; color: #555; align-self: center; margin-top: -16px; }
+    .chart-container { width: 100%; max-width: 900px; }
+    .chart-row { display: flex; align-items: center; gap: 20px; margin-bottom: 18px; }
+    .chart-label { width: 280px; font-size: 1.6rem; color: #222; text-align: right; flex-shrink: 0; }
+    .chart-track { flex: 1; background: #ddd; border-radius: 8px; height: 40px; }
+    .chart-fill { background: #006341; height: 40px; border-radius: 8px; transition: width 0.8s ease; min-width: 4px; }
+    .chart-count { width: 60px; font-size: 1.6rem; font-weight: 700; color: #006341; }
+    .arc-fill-0 { background: #4CAF7D; }
+    .arc-fill-1 { background: #006341; }
+    .arc-fill-2 { background: #00856d; }
+    .arc-fill-3 { background: #003d29; }
+
+    /* ── Portrait (Act 1) ── */
+    #screen-portrait { background: #1A1A1A; text-align: left; max-width: 1100px; margin: 0 auto; gap: 28px; }
+    .portrait-head { font-size: 1.3rem; color: #4CAF7D; text-transform: uppercase; letter-spacing: 0.12em; align-self: center; }
+    .portrait-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; width: 100%; }
+    .portrait-cell { background: #262626; border-radius: 12px; padding: 24px 26px; }
+    .portrait-cell .frame { font-size: 1.1rem; color: #c9b87a; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; font-weight: 700; }
+    .portrait-cell .text { font-size: 1.5rem; color: #eee; line-height: 1.45; }
+    .portrait-closing { font-size: 2.1rem; color: white; line-height: 1.4; text-align: center; border-top: 2px solid #006341; padding-top: 24px; margin-top: 8px; }
+    .waiting-text { opacity: 0.5; font-style: italic; }
+
+    /* ── Frontier (Act 2) ── */
+    #screen-frontier { background: #F5F5F2; color: #1A1A1A; max-width: 1200px; margin: 0 auto; gap: 22px; padding: 40px 56px; justify-content: flex-start; }
+    #screen-frontier h2 { font-size: 2rem; font-weight: 800; color: #006341; align-self: center; }
+    #screen-frontier .sub { font-size: 1.2rem; color: #555; font-style: italic; align-self: center; margin-top: -14px; }
+    .frontier-list { display: flex; flex-direction: column; gap: 18px; width: 100%; margin-top: 8px; }
+    .frontier-card { background: white; border-radius: 12px; padding: 18px 22px; border-left: 6px solid #006341; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    .frontier-card.infeasible { border-left-color: #c89968; }
+    .frontier-wish { font-size: 1.3rem; color: #222; font-style: italic; margin-bottom: 8px; line-height: 1.4; }
+    .frontier-tools { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .frontier-tool { background: #f0f9f4; color: #006341; padding: 4px 10px; border-radius: 14px; font-size: 0.95rem; font-weight: 600; }
+    .frontier-steps { list-style: none; counter-reset: fs; margin: 6px 0; }
+    .frontier-steps li { padding: 4px 0 4px 32px; position: relative; counter-increment: fs; font-size: 1.15rem; line-height: 1.4; color: #333; }
+    .frontier-steps li::before { content: counter(fs); position: absolute; left: 0; top: 5px; width: 22px; height: 22px; background: #006341; color: white; border-radius: 50%; text-align: center; line-height: 22px; font-size: 0.8rem; font-weight: 700; }
+    .frontier-caveat { margin-top: 8px; font-size: 1rem; color: #8b4513; font-style: italic; line-height: 1.4; }
+    .frontier-caveat::before { content: '⚠ '; font-style: normal; }
+
+    /* ── Clusters (Act 3a) ── */
+    #screen-clusters { background: #F5F5F2; color: #1A1A1A; gap: 36px; text-align: center; }
+    #screen-clusters h2 { font-size: 2rem; font-weight: 800; color: #006341; }
+    .clusters-grid { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; max-width: 1100px; }
+    .cluster-card { background: #006341; color: white; border-radius: 16px; padding: 32px 36px; flex: 1; min-width: 220px; max-width: 280px; }
+    .cluster-num { font-size: 4rem; font-weight: 800; }
+    .cluster-name { font-size: 1.5rem; opacity: 0.9; margin-top: 8px; line-height: 1.3; }
+    .cluster-example { font-size: 1.25rem; opacity: 0.65; margin-top: 12px; font-style: italic; line-height: 1.4; }
+
+    /* ── Meta Question (Act 3b) ── */
+    #screen-meta_question { background: #006341; text-align: center; gap: 36px; }
+    .eyebrow { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.65; }
+    .meta-q { font-size: 3.2rem; font-weight: 800; line-height: 1.3; max-width: 1000px; }
+    .meta-rationale { font-size: 1.5rem; opacity: 0.6; max-width: 760px; line-height: 1.6; }
+
+    /* ── Outlier (Act 3c) ── */
+    #screen-outlier { background: #1A1A1A; text-align: center; gap: 28px; }
+    .outlier-eyebrow { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.12em; color: #4CAF7D; }
+    .outlier-q { font-size: 2.4rem; font-weight: 700; line-height: 1.4; max-width: 900px; color: white; }
+    .outlier-note { font-size: 1.3rem; color: #999; font-style: italic; max-width: 700px; line-height: 1.5; }
+
+    /* ── Invitation (Act 4) ── */
+    #screen-invitation { background: #F5F5F2; color: #1A1A1A; max-width: 1200px; margin: 0 auto; gap: 20px; padding: 40px 56px; justify-content: flex-start; }
+    #screen-invitation h2 { font-size: 2rem; font-weight: 800; color: #006341; align-self: center; }
+    #screen-invitation .sub { font-size: 1.2rem; color: #555; font-style: italic; align-self: center; margin-top: -14px; }
+    .invite-list { display: flex; flex-direction: column; gap: 18px; width: 100%; margin-top: 8px; }
+    .invite-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; gap: 18px; align-items: flex-start; }
+    .invite-icon { width: 44px; height: 44px; background: #006341; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; font-weight: 800; }
+    .invite-body { flex: 1; }
+    .invite-audience { font-size: 0.9rem; color: #4CAF7D; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
+    .invite-text { font-size: 1.3rem; color: #222; line-height: 1.5; }
+    .invite-tool { display: inline-block; background: #f0f9f4; color: #006341; padding: 3px 10px; border-radius: 12px; font-size: 0.92rem; font-weight: 600; margin-top: 8px; }
+    .invite-closing { font-size: 1.9rem; color: #006341; font-weight: 700; text-align: center; line-height: 1.4; margin-top: 12px; padding: 20px; background: white; border-radius: 12px; border: 2px solid #006341; }
+
+    /* Loading overlay */
+    #loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); align-items: center; justify-content: center; flex-direction: column; gap: 20px; z-index: 100; }
+    #loading.active { display: flex; }
+    .loading-text { font-size: 1.8rem; color: #4CAF7D; }
+    .dots::after { content: ''; animation: dots 1.4s steps(4, end) infinite; }
+    @keyframes dots { 0%,20%{content:'';} 40%{content:'.';} 60%{content:'..';} 80%,100%{content:'...';} }
+
+    #conn-warn { display: none; position: fixed; bottom: 16px; right: 16px; background: #c0392b; color: white; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; z-index: 200; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-text">Reviewing submissions<span class="dots"></span></div>
+</div>
+
+<div id="conn-warn">Connection lost — retrying</div>
+
+<!-- Collection -->
+<div class="screen" id="screen-collection">
+  <img id="qr-img" src="/api/qr" alt="QR Code">
+  <h2>Scan to join the room</h2>
+  <div class="counter" id="collection-count">0</div>
+  <div class="counter-label">responses in the room</div>
+  <div class="fallback-url" id="fallback-url"></div>
+</div>
+
+<!-- Role Chart (Act 0a) -->
+<div class="screen chart-screen" id="screen-role_chart">
+  <h2>Who's in the room</h2>
+  <div class="sub">by role</div>
+  <div class="chart-container" id="role-chart-display"></div>
+</div>
+
+<!-- Arc Chart (Act 0b) -->
+<div class="screen chart-screen" id="screen-arc_chart">
+  <h2>Where the room is on the arc</h2>
+  <div class="sub">Chatbot → Assistant → Agent → Colleague</div>
+  <div class="chart-container" id="arc-chart-display"></div>
+</div>
+
+<!-- Portrait (Act 1) -->
+<div class="screen" id="screen-portrait">
+  <div class="portrait-head">Portrait of your practice</div>
+  <div class="portrait-grid">
+    <div class="portrait-cell"><div class="frame">Time</div><div class="text" id="portrait-time">Waiting for synthesis...</div></div>
+    <div class="portrait-cell"><div class="frame">Effort</div><div class="text" id="portrait-effort">Waiting for synthesis...</div></div>
+    <div class="portrait-cell"><div class="frame">Skill</div><div class="text" id="portrait-skill">Waiting for synthesis...</div></div>
+  </div>
+  <div class="portrait-closing" id="portrait-closing"></div>
+</div>
+
+<!-- Frontier (Act 2) -->
+<div class="screen" id="screen-frontier">
+  <h2>The Frontier — how you'd do it today</h2>
+  <div class="sub">three wishes from the room, made into working agentic workflows</div>
+  <div class="frontier-list" id="frontier-list"><div class="waiting-text" style="text-align:center; color:#888; font-size:1.2rem">Waiting for synthesis...</div></div>
+</div>
+
+<!-- Clusters (Act 3a) -->
+<div class="screen" id="screen-clusters">
+  <h2>Your questions fall into…</h2>
+  <div class="clusters-grid" id="clusters-display"></div>
+</div>
+
+<!-- Meta Question (Act 3b) -->
+<div class="screen" id="screen-meta_question">
+  <div class="eyebrow">The question this room is really asking</div>
+  <div class="meta-q" id="meta-q-text"></div>
+  <div class="meta-rationale" id="meta-q-rationale"></div>
+</div>
+
+<!-- Outlier (Act 3c) -->
+<div class="screen" id="screen-outlier">
+  <div class="outlier-eyebrow">One that didn't fit — but we liked it</div>
+  <div class="outlier-q" id="outlier-q-text"></div>
+  <div class="outlier-note" id="outlier-note-text"></div>
+</div>
+
+<!-- Invitation (Act 4) -->
+<div class="screen" id="screen-invitation">
+  <h2>The Invitation</h2>
+  <div class="sub">what AI noticed about this room that you didn't mention</div>
+  <div class="invite-list" id="invite-list"><div class="waiting-text" style="text-align:center; color:#888; font-size:1.2rem">Waiting for synthesis...</div></div>
+  <div class="invite-closing" id="invite-closing" style="display:none"></div>
+</div>
+
+<script>
+  let currentState = '';
+  let connOk = true;
+  let pollInFlight = false;
+
+  const submitUrl = window.location.origin + '/submit';
+  document.getElementById('qr-img').src = '/api/qr?url=' + encodeURIComponent(submitUrl);
+  document.getElementById('fallback-url').textContent = submitUrl;
+
+  function showScreen(state) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + state);
+    if (el) el.classList.add('active');
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderBarChart(containerId, items, colorClassFn) {
+    const max = items[0]?.count || 1;
+    document.getElementById(containerId).innerHTML = items.map((item, i) => {
+      const fillClass = colorClassFn ? colorClassFn(i) : '';
+      return `<div class="chart-row">
+        <div class="chart-label">${esc(item.label)}</div>
+        <div class="chart-track"><div class="chart-fill ${fillClass}" style="width:${Math.round(item.count/max*100)}%"></div></div>
+        <div class="chart-count">${item.count}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function poll() {
+    if (pollInFlight) return;
+    pollInFlight = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const r = await fetch('/api/state', { signal: controller.signal });
+      const d = await r.json();
+
+      if (!connOk) { connOk = true; document.getElementById('conn-warn').style.display = 'none'; }
+
+      const isLoading = d.synthesizing?.portrait || d.synthesizing?.frontier || d.synthesizing?.clusters || d.synthesizing?.invitation;
+      document.getElementById('loading').classList.toggle('active', isLoading);
+
+      // Collection
+      document.getElementById('collection-count').textContent = d.count.roles;
+
+      // Charts
+      if (d.roleDistribution?.length) renderBarChart('role-chart-display', d.roleDistribution);
+      if (d.arcDistribution?.length) renderBarChart('arc-chart-display', d.arcDistribution, i => 'arc-fill-' + (i % 4));
+
+      // Portrait (Act 1)
+      if (d.portraitResult) {
+        const p = d.portraitResult;
+        document.getElementById('portrait-time').textContent = p.time || '';
+        document.getElementById('portrait-time').className = 'text';
+        document.getElementById('portrait-effort').textContent = p.effort || '';
+        document.getElementById('portrait-effort').className = 'text';
+        document.getElementById('portrait-skill').textContent = p.skill || '';
+        document.getElementById('portrait-skill').className = 'text';
+        document.getElementById('portrait-closing').textContent = p.closing || '';
+      } else {
+        ['time','effort','skill'].forEach(k => {
+          const el = document.getElementById('portrait-' + k);
+          el.textContent = 'Waiting for synthesis...';
+          el.className = 'text waiting-text';
+        });
+        document.getElementById('portrait-closing').textContent = '';
+      }
+
+      // Frontier (Act 2)
+      if (d.frontierResult?.workflows?.length) {
+        document.getElementById('frontier-list').innerHTML = d.frontierResult.workflows.map(w => {
+          const tools = (w.tools || []).map(t => `<span class="frontier-tool">${esc(t)}</span>`).join('');
+          const steps = (w.steps || []).map(s => `<li>${esc(s)}</li>`).join('');
+          const infeasible = w.feasible === false ? ' infeasible' : '';
+          return `<div class="frontier-card${infeasible}">
+            <div class="frontier-wish">"${esc(w.wish)}"</div>
+            <div class="frontier-tools">${tools}</div>
+            <ol class="frontier-steps">${steps}</ol>
+            ${w.caveat ? `<div class="frontier-caveat">${esc(w.caveat)}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+
+      // Clusters + Meta + Outlier (Act 3)
+      if (d.clustersResult) {
+        const r2 = d.clustersResult;
+        document.getElementById('clusters-display').innerHTML = (r2.clusters || []).map(c =>
+          `<div class="cluster-card">
+            <div class="cluster-num">${c.count}</div>
+            <div class="cluster-name">${esc(c.label)}</div>
+            <div class="cluster-example">"${esc(c.example_question || '')}"</div>
+          </div>`).join('');
+        document.getElementById('meta-q-text').textContent = r2.meta_question || '';
+        document.getElementById('meta-q-text').className = 'meta-q';
+        document.getElementById('meta-q-rationale').textContent = r2.meta_question_rationale || '';
+        document.getElementById('outlier-q-text').textContent = r2.outlier_question || '';
+        document.getElementById('outlier-note-text').textContent = r2.outlier_note || '';
+      } else {
+        document.getElementById('clusters-display').innerHTML = '<div class="cluster-card"><div class="cluster-name" style="opacity:0.5">Waiting for synthesis...</div></div>';
+        document.getElementById('meta-q-text').textContent = 'Waiting for synthesis...';
+        document.getElementById('meta-q-text').className = 'meta-q waiting-text';
+        document.getElementById('meta-q-rationale').textContent = '';
+        document.getElementById('outlier-q-text').textContent = 'Waiting for synthesis...';
+        document.getElementById('outlier-q-text').className = 'outlier-q waiting-text';
+        document.getElementById('outlier-note-text').textContent = '';
+      }
+
+      // Invitation (Act 4)
+      if (d.invitationResult) {
+        const inv = d.invitationResult;
+        document.getElementById('invite-list').innerHTML = (inv.suggestions || []).map((s, i) =>
+          `<div class="invite-card">
+            <div class="invite-icon">${i+1}</div>
+            <div class="invite-body">
+              ${s.audience ? `<div class="invite-audience">${esc(s.audience)}</div>` : ''}
+              <div class="invite-text">${esc(s.text)}</div>
+              ${s.tool ? `<span class="invite-tool">${esc(s.tool)}</span>` : ''}
+            </div>
+          </div>`).join('');
+        if (inv.closing) {
+          const cel = document.getElementById('invite-closing');
+          cel.textContent = inv.closing;
+          cel.style.display = 'block';
+        }
+      }
+
+      if (d.displayState !== currentState) {
+        currentState = d.displayState;
+        showScreen(currentState);
+      }
+
+    } catch {
+      connOk = false;
+      document.getElementById('conn-warn').style.display = 'block';
+    } finally {
+      clearTimeout(timeout);
+      pollInFlight = false;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+
+  showScreen('collection');
+  poll();
+  setInterval(poll, 2000);
+</script>
+</body>
+</html>

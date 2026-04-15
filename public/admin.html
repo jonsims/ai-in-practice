@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — AI in Practice</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F5F2; color: #1A1A1A; min-height: 100vh; }
+
+    #pin-gate { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; background: #F5F5F2; }
+    #pin-gate h2 { color: #006341; font-size: 1.4rem; }
+    #pin-input { padding: 12px 20px; font-size: 1.5rem; text-align: center; border: 2px solid #ccc; border-radius: 8px; background: white; color: #1A1A1A; width: 160px; letter-spacing: 0.3em; }
+    #pin-input:focus { border-color: #006341; outline: none; }
+    #pin-btn { padding: 12px 32px; background: #006341; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    #pin-error { color: #c0392b; font-size: 0.9rem; }
+
+    #app { display: none; }
+    header { background: #006341; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1rem; font-weight: 700; color: white; }
+
+    .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .panel { background: white; border-radius: 10px; padding: 16px; border: 1px solid #e0e0e0; }
+    .panel h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: #006341; margin-bottom: 4px; }
+    .panel-desc { font-size: 0.78rem; color: #888; margin-bottom: 12px; line-height: 1.4; }
+    .full-col { grid-column: span 2; }
+
+    .stats { display: flex; gap: 12px; }
+    .stat { background: #f0f9f4; border: 1px solid #d0e8d8; border-radius: 8px; padding: 12px 16px; flex: 1; text-align: center; }
+    .stat-num { font-size: 2.2rem; font-weight: 700; color: #006341; }
+    .stat-label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+
+    .btn { padding: 10px 18px; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-green { background: #006341; color: white; }
+    .btn-gray { background: #e0e0e0; color: #555; }
+    .btn-block { width: 100%; margin-bottom: 8px; padding: 14px; font-size: 0.95rem; }
+
+    .next-session-bar { display: flex; align-items: center; gap: 12px; }
+    .next-session-confirm { display: none; background: #f0f9f4; border: 1px solid #006341; border-radius: 8px; padding: 12px 16px; margin-top: 8px; }
+    .next-session-confirm p { font-size: 0.85rem; color: #555; margin-bottom: 10px; }
+    .next-session-confirm .btn { margin-right: 8px; }
+
+    .readiness { font-size: 0.82rem; color: #888; margin-bottom: 8px; min-height: 1.2em; }
+    .readiness.ready { color: #006341; }
+    .synth-error { color: #c0392b; font-size: 0.82rem; margin-top: 8px; display: none; }
+
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 0.82rem; }
+    .bar-label { width: 140px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+    .bar-track { flex: 1; background: #e8e8e4; border-radius: 3px; height: 12px; }
+    .bar-fill { background: #006341; height: 12px; border-radius: 3px; transition: width 0.5s; min-width: 2px; }
+    .bar-count { width: 30px; text-align: right; color: #888; font-size: 0.78rem; }
+
+    .item-list { max-height: 190px; overflow-y: auto; }
+    .item { font-size: 0.8rem; color: #555; padding: 5px 0; border-bottom: 1px solid #eee; line-height: 1.4; display: flex; justify-content: space-between; gap: 8px; }
+    .item-text { flex: 1; }
+    .item-del { background: #fee; border: 1px solid #ecc; border-radius: 4px; color: #c0392b; cursor: pointer; font-size: 0.8rem; padding: 2px 8px; flex-shrink: 0; transition: all 0.15s; }
+    .item-del:hover { background: #c0392b; color: white; border-color: #c0392b; }
+
+    .current-state-banner { background: #f0f9f4; border: 1px solid #d0e8d8; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.85rem; color: #555; }
+    .current-state-banner span { color: #006341; font-weight: 700; }
+    .section-label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 0.06em; margin-bottom: 6px; margin-top: 8px; }
+    .display-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .display-btn { padding: 10px 8px; background: #f0f0ec; border: 2px solid transparent; border-radius: 7px; color: #555; font-size: 0.78rem; cursor: pointer; text-align: center; transition: all 0.15s; line-height: 1.3; }
+    .display-btn:hover { border-color: #006341; color: #1A1A1A; }
+    .display-btn.active { border-color: #006341; background: #f0f9f4; color: #006341; font-weight: 700; }
+
+    .result-box { background: #f0f9f4; border: 1px solid #d0e8d8; border-radius: 8px; padding: 12px; margin-top: 8px; font-size: 0.82rem; line-height: 1.6; color: #333; }
+    .result-label { font-size: 0.68rem; text-transform: uppercase; color: #006341; letter-spacing: 0.08em; margin-bottom: 4px; }
+
+    /* Prediction input */
+    .prediction-bar { background: #fff8e6; border: 1px solid #e8d59a; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; gap: 8px; align-items: center; font-size: 0.82rem; }
+    .prediction-bar label { color: #8b6d1a; font-weight: 600; flex-shrink: 0; }
+    .prediction-bar input { flex: 1; padding: 6px 10px; border: 1px solid #e0d29a; border-radius: 5px; font-size: 0.85rem; font-family: inherit; background: white; }
+
+    .q-list { max-height: 260px; overflow-y: auto; }
+    .q-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid #eee; font-size: 0.82rem; color: #333; }
+    .q-num { color: #aaa; flex-shrink: 0; width: 20px; }
+    .q-text { flex: 1; line-height: 1.4; }
+    .q-del { background: #fee; border: 1px solid #ecc; border-radius: 4px; color: #c0392b; cursor: pointer; font-size: 0.85rem; padding: 4px 10px; flex-shrink: 0; transition: all 0.15s; }
+    .q-del:hover { background: #c0392b; color: white; border-color: #c0392b; }
+
+    .danger-zone { border: 1px solid #ecc; border-radius: 8px; padding: 14px; margin-top: 16px; }
+    .danger-zone h3 { font-size: 0.75rem; text-transform: uppercase; color: #c0392b; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .danger-btns { display: flex; gap: 8px; }
+    .btn-red { background: white; border: 1px solid #c0392b; color: #c0392b; }
+    .btn-red:hover { background: #c0392b; color: white; }
+
+    .spinning { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF7D; display: inline-block; margin-right: 6px; }
+    .conn-dot.offline { background: #c0392b; }
+
+    .projector-layout { display: flex; gap: 16px; align-items: flex-start; }
+    .projector-controls { flex: 1; min-width: 0; }
+    .preview-container { flex: 0 0 320px; border: 2px solid #d0e8d8; border-radius: 8px; overflow: hidden; position: relative; height: 180px; }
+    .preview-container iframe { position: absolute; top: 0; left: 0; width: 1280px; height: 720px; transform: scale(0.25); transform-origin: top left; border: none; pointer-events: none; }
+    @media (max-width: 700px) { .projector-layout { flex-direction: column; } .preview-container { flex: none; width: 100%; height: 0; padding-top: 56.25%; } }
+
+    @media (max-width: 700px) { .main { grid-template-columns: 1fr; } .full-col { grid-column: span 1; } }
+  </style>
+</head>
+<body>
+
+<div id="pin-gate">
+  <h2>Admin Access</h2>
+  <input type="password" id="pin-input" placeholder="PIN" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter') checkPin()">
+  <button class="btn btn-green" id="pin-btn" onclick="checkPin()">Enter</button>
+  <div id="pin-error"></div>
+</div>
+
+<div id="app">
+  <header>
+    <h1><span class="conn-dot" id="conn-dot"></span>AI in Practice — Admin</h1>
+  </header>
+
+  <div class="main">
+
+    <!-- Projector Display Controls -->
+    <div class="panel full-col">
+      <h2>Projector Display</h2>
+      <p class="panel-desc">Controls what appears on the projector. Acts are numbered 0→4 and match the Tool→Colleague arc.</p>
+      <div class="projector-layout">
+        <div class="projector-controls">
+          <div class="current-state-banner">Now showing: <span id="current-state-label">QR Code</span></div>
+
+          <div class="section-label">Act 0 — Who's in the room</div>
+          <div class="display-grid">
+            <button class="display-btn" data-state="collection" onclick="setDisplay('collection')">QR Code</button>
+            <button class="display-btn" data-state="role_chart" onclick="setDisplay('role_chart')">Roles</button>
+            <button class="display-btn" data-state="arc_chart" onclick="setDisplay('arc_chart')">Arc Position</button>
+          </div>
+
+          <div class="section-label">Act 1 — Portrait (Assistant)</div>
+          <div class="display-grid">
+            <button class="display-btn" data-state="portrait" onclick="setDisplay('portrait')">Portrait</button>
+          </div>
+
+          <div class="section-label">Act 2 — The Frontier (Agent)</div>
+          <div class="display-grid">
+            <button class="display-btn" data-state="frontier" onclick="setDisplay('frontier')">Frontier</button>
+          </div>
+
+          <div class="section-label">Act 3 — The Meta Question</div>
+          <div class="display-grid">
+            <button class="display-btn" data-state="clusters" onclick="setDisplay('clusters')">Themes</button>
+            <button class="display-btn" data-state="meta_question" onclick="setDisplay('meta_question')">The Question</button>
+            <button class="display-btn" data-state="outlier" onclick="setDisplay('outlier')">Outlier</button>
+          </div>
+
+          <div class="section-label">Act 4 — The Invitation (Colleague)</div>
+          <div class="display-grid">
+            <button class="display-btn" data-state="invitation" onclick="setDisplay('invitation')">Invitation</button>
+          </div>
+        </div>
+        <div class="preview-container">
+          <iframe src="/display" title="Projector preview"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Responses -->
+    <div class="panel full-col">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <div>
+          <h2 style="margin-bottom:0">Live Responses</h2>
+          <p class="panel-desc" style="margin-bottom:0">Updates automatically as responses come in.</p>
+        </div>
+        <div class="next-session-bar">
+          <button class="btn btn-green" id="next-session-btn" onclick="showNextSessionConfirm()" style="font-size:0.8rem; padding:8px 14px;">Next Session</button>
+        </div>
+      </div>
+      <div class="next-session-confirm" id="next-session-confirm">
+        <p>Clear all submissions, responses, and synthesis results? This cannot be undone.</p>
+        <button class="btn btn-green" onclick="executeNextSession()">Yes, reset for next session</button>
+        <button class="btn btn-gray" onclick="hideNextSessionConfirm()">Cancel</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Submissions</div></div>
+        <div class="stat"><div class="stat-num" id="stat-teaches">0</div><div class="stat-label">Teaches</div></div>
+        <div class="stat"><div class="stat-num" id="stat-wishes">0</div><div class="stat-label">Wishes</div></div>
+        <div class="stat"><div class="stat-num" id="stat-questions">0</div><div class="stat-label">Questions</div></div>
+      </div>
+    </div>
+
+    <!-- AI Generation -->
+    <div class="panel full-col">
+      <h2>AI Generation</h2>
+      <p class="panel-desc">One click: runs Act 1 (Portrait), Act 2 (Frontier), Act 3 (Meta question), and Act 4 (Invitation) in parallel. ~20 seconds.</p>
+
+      <div class="prediction-bar">
+        <label>Your prediction for the #1 arc stage:</label>
+        <input type="text" id="pred-arc" placeholder="e.g. Assistant">
+      </div>
+
+      <div class="readiness" id="portrait-readiness"></div>
+      <div class="readiness" id="frontier-readiness"></div>
+      <div class="readiness" id="clusters-readiness"></div>
+      <div class="readiness" id="invitation-readiness"></div>
+
+      <button class="btn btn-green btn-block" id="generate-btn" onclick="generateAll()">Generate All AI Content</button>
+      <div class="synth-error" id="synth-error"></div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
+        <div><div id="portrait-result"></div></div>
+        <div><div id="frontier-result"></div></div>
+        <div><div id="clusters-result"></div></div>
+        <div><div id="invitation-result"></div></div>
+      </div>
+    </div>
+
+    <!-- Data panels -->
+    <div class="panel">
+      <h2>Roles</h2>
+      <p class="panel-desc">Who's in the room.</p>
+      <div id="role-chart"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Arc Position</h2>
+      <p class="panel-desc">Chatbot → Assistant → Agent → Colleague</p>
+      <div id="arc-chart"></div>
+    </div>
+
+    <div class="panel">
+      <h2>AI tricks to teach a colleague</h2>
+      <p class="panel-desc">Delete anything off-topic before generating.</p>
+      <div class="item-list" id="teach-list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Wishes (what AI can't do yet)</h2>
+      <p class="panel-desc">Feeds Act 2 (Frontier).</p>
+      <div class="item-list" id="wish-list"></div>
+    </div>
+
+    <!-- Questions -->
+    <div class="panel full-col">
+      <h2>Hardest questions about AI (<span id="q-count">0</span>)</h2>
+      <p class="panel-desc">Feeds Act 3. Delete any inappropriate ones before generating.</p>
+      <div class="q-list" id="q-list"></div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="panel full-col">
+      <div class="danger-zone">
+        <h3>Danger Zone</h3>
+        <div class="danger-btns">
+          <button class="btn btn-red" onclick="loadTestData()">Load Test Data</button>
+          <button class="btn btn-red" onclick="confirmReset()">Full Reset</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let pin = '';
+  let pollInterval;
+  let refreshInFlight = false;
+
+  const STATE_LABELS = {
+    collection: 'QR Code',
+    role_chart: 'Roles',
+    arc_chart: 'Arc Position',
+    portrait: 'Portrait',
+    frontier: 'Frontier',
+    clusters: 'Themes',
+    meta_question: 'The Question',
+    outlier: 'Outlier',
+    invitation: 'Invitation',
+  };
+
+  async function adminFetch(url, opts = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      return await fetch(url, { ...opts, signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function checkPin() {
+    const input = document.getElementById('pin-input').value;
+    adminFetch('/api/admin/data', { headers: { 'x-admin-pin': input } }).then(r => {
+      if (r.status === 401) {
+        document.getElementById('pin-error').textContent = 'Wrong PIN.';
+      } else {
+        pin = input;
+        document.getElementById('pin-gate').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        startPolling();
+      }
+    }).catch(() => {
+      document.getElementById('pin-error').textContent = 'Connection error.';
+    });
+  }
+
+  function startPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    refresh();
+    pollInterval = setInterval(refresh, 2000);
+  }
+
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    try {
+      const r = await adminFetch('/api/admin/data', { headers: { 'x-admin-pin': pin } });
+      if (r.status === 401) { clearInterval(pollInterval); location.reload(); return; }
+      const d = await r.json();
+      document.getElementById('conn-dot').className = 'conn-dot';
+      updateUI(d);
+    } catch {
+      document.getElementById('conn-dot').className = 'conn-dot offline';
+    } finally {
+      refreshInFlight = false;
+    }
+  }
+
+  function updateUI(d) {
+    document.getElementById('stat-total').textContent = d.roles.length;
+    document.getElementById('stat-teaches').textContent = d.teaches.length;
+    document.getElementById('stat-wishes').textContent = d.wishes.length;
+    document.getElementById('stat-questions').textContent = d.questions.length;
+    document.getElementById('q-count').textContent = d.questions.length;
+
+    // Readiness
+    const ready = {
+      portrait: d.teaches.length >= 5,
+      frontier: d.wishes.length >= 3,
+      clusters: d.questions.length >= 5,
+      invitation: d.teaches.length >= 5,
+    };
+    setReady('portrait-readiness', ready.portrait, `Act 1 (Portrait) — ${d.teaches.length} teaches`, `Act 1 needs 5 teaches (have ${d.teaches.length})`);
+    setReady('frontier-readiness', ready.frontier, `Act 2 (Frontier) — ${d.wishes.length} wishes`, `Act 2 needs 3 wishes (have ${d.wishes.length})`);
+    setReady('clusters-readiness', ready.clusters, `Act 3 (Meta Q) — ${d.questions.length} questions`, `Act 3 needs 5 questions (have ${d.questions.length})`);
+    setReady('invitation-readiness', ready.invitation, `Act 4 (Invitation) — ready`, `Act 4 needs 5 teaches (have ${d.teaches.length})`);
+
+    // Charts
+    renderBars('role-chart', d.roleDistribution);
+    renderBars('arc-chart', d.arcDistribution);
+
+    // Teaches
+    document.getElementById('teach-list').innerHTML = d.teaches.map((t, i) =>
+      `<div class="item"><span class="item-text">${esc(t)}</span><button class="item-del" onclick="deleteTeach(${i})">✕</button></div>`
+    ).join('');
+
+    // Wishes
+    document.getElementById('wish-list').innerHTML = d.wishes.map((w, i) =>
+      `<div class="item"><span class="item-text">${esc(w)}</span><button class="item-del" onclick="deleteWish(${i})">✕</button></div>`
+    ).join('');
+
+    // Questions
+    document.getElementById('q-list').innerHTML = d.questions.map((q, i) =>
+      `<div class="q-item"><span class="q-num">${i+1}</span><span class="q-text">${esc(q.text)}</span><button class="q-del" onclick="deleteQ(${q.id})">✕</button></div>`
+    ).join('');
+
+    // Display state
+    document.getElementById('current-state-label').textContent = STATE_LABELS[d.displayState] || d.displayState;
+    document.querySelectorAll('.display-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.state === d.displayState));
+
+    // Results
+    if (d.portraitResult) {
+      const p = d.portraitResult;
+      document.getElementById('portrait-result').innerHTML = `<div class="result-box">
+        <div class="result-label">Portrait (Act 1)</div>
+        <div><b>Time:</b> ${esc(p.time || '')}</div>
+        <div><b>Effort:</b> ${esc(p.effort || '')}</div>
+        <div><b>Skill:</b> ${esc(p.skill || '')}</div>
+        <div style="margin-top:6px;font-style:italic">${esc(p.closing || '')}</div>
+      </div>`;
+    }
+    if (d.frontierResult?.workflows) {
+      document.getElementById('frontier-result').innerHTML = `<div class="result-box">
+        <div class="result-label">Frontier (Act 2)</div>
+        ${d.frontierResult.workflows.map(w => `<div style="margin-bottom:6px"><b>"${esc((w.wish || '').slice(0, 60))}..."</b> — ${(w.tools || []).join(', ')}</div>`).join('')}
+      </div>`;
+    }
+    if (d.clustersResult) {
+      const r = d.clustersResult;
+      document.getElementById('clusters-result').innerHTML = `<div class="result-box">
+        <div class="result-label">Meta Question (Act 3)</div>
+        <div style="font-style:italic;margin-bottom:6px">"${esc(r.meta_question || '')}"</div>
+        <div style="font-size:0.75rem;color:#888">${(r.clusters || []).map(c => `${esc(c.label)} (${c.count})`).join(' · ')}</div>
+      </div>`;
+    }
+    if (d.invitationResult) {
+      document.getElementById('invitation-result').innerHTML = `<div class="result-box">
+        <div class="result-label">Invitation (Act 4)</div>
+        ${(d.invitationResult.suggestions || []).map(s => `<div style="margin-bottom:4px">→ <b>${esc((s.audience || '').slice(0,40))}</b>: ${esc((s.text || '').slice(0, 80))}...</div>`).join('')}
+      </div>`;
+    }
+
+    // Generate button
+    const btn = document.getElementById('generate-btn');
+    const anySynth = d.synthesizing?.portrait || d.synthesizing?.frontier || d.synthesizing?.clusters || d.synthesizing?.invitation;
+    const allDone = d.portraitResult && d.frontierResult && d.clustersResult && d.invitationResult;
+    if (anySynth) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinning">&#x27F3;</span> AI is reading responses...`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = allDone ? 'Re-generate All AI Content' : 'Generate All AI Content';
+    }
+  }
+
+  function setReady(id, isReady, readyMsg, notReadyMsg) {
+    const el = document.getElementById(id);
+    el.textContent = isReady ? readyMsg : notReadyMsg;
+    el.className = 'readiness' + (isReady ? ' ready' : '');
+  }
+
+  function renderBars(containerId, items) {
+    const max = items[0]?.count || 1;
+    document.getElementById(containerId).innerHTML = items.map(({ label, count }) =>
+      `<div class="bar-row"><div class="bar-label" title="${esc(label)}">${esc(label)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(count/max*100)}%"></div></div><div class="bar-count">${count}</div></div>`
+    ).join('');
+  }
+
+  async function generateAll() {
+    const errEl = document.getElementById('synth-error');
+    errEl.style.display = 'none';
+
+    const results = await Promise.allSettled([
+      adminFetch('/api/admin/synthesize/portrait', { method: 'POST', headers: { 'x-admin-pin': pin } }),
+      adminFetch('/api/admin/synthesize/frontier', { method: 'POST', headers: { 'x-admin-pin': pin } }),
+      adminFetch('/api/admin/synthesize/clusters', { method: 'POST', headers: { 'x-admin-pin': pin } }),
+      adminFetch('/api/admin/synthesize/invitation', { method: 'POST', headers: { 'x-admin-pin': pin } }),
+    ]);
+
+    const labels = ['Portrait', 'Frontier', 'Clusters', 'Invitation'];
+    const errors = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === 'fulfilled' && !r.value.ok) {
+        const e = await r.value.json().catch(() => ({}));
+        errors.push(`${labels[i]}: ${e.error || 'error'}`);
+      } else if (r.status === 'rejected') {
+        errors.push(`${labels[i]}: connection error`);
+      }
+    }
+    if (errors.length) {
+      errEl.textContent = errors.join(' • ');
+      errEl.style.display = 'block';
+    }
+    refresh();
+  }
+
+  async function setDisplay(state) {
+    const btn = document.querySelector(`[data-state="${state}"]`);
+    const origText = btn.textContent;
+    btn.textContent = 'Sent';
+    setTimeout(() => { btn.textContent = origText; }, 800);
+    await adminFetch('/api/admin/display', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin }, body: JSON.stringify({ state }) });
+    refresh();
+  }
+
+  async function deleteQ(id) {
+    if (!confirm('Delete this question?')) return;
+    await adminFetch(`/api/admin/question/${id}`, { method: 'DELETE', headers: { 'x-admin-pin': pin } });
+    refresh();
+  }
+  async function deleteTeach(idx) {
+    await adminFetch(`/api/admin/teach/${idx}`, { method: 'DELETE', headers: { 'x-admin-pin': pin } });
+    refresh();
+  }
+  async function deleteWish(idx) {
+    await adminFetch(`/api/admin/wish/${idx}`, { method: 'DELETE', headers: { 'x-admin-pin': pin } });
+    refresh();
+  }
+
+  function showNextSessionConfirm() {
+    document.getElementById('next-session-confirm').style.display = 'block';
+    document.getElementById('next-session-btn').style.display = 'none';
+  }
+  function hideNextSessionConfirm() {
+    document.getElementById('next-session-confirm').style.display = 'none';
+    document.getElementById('next-session-btn').style.display = '';
+  }
+  async function executeNextSession() {
+    await adminFetch('/api/admin/next-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin },
+      body: JSON.stringify({ confirm: true }),
+    });
+    hideNextSessionConfirm();
+    refresh();
+  }
+
+  async function loadTestData() {
+    if (!confirm('Load test data? This will clear any real submissions.')) return;
+    await adminFetch('/api/admin/load-test-data', { method: 'POST', headers: { 'x-admin-pin': pin } });
+    refresh();
+  }
+
+  async function confirmReset() {
+    if (!confirm('FULL RESET — all data permanently cleared. Are you sure?')) return;
+    await adminFetch('/api/admin/reset', { method: 'POST', headers: { 'x-admin-pin': pin } });
+    refresh();
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('pin-input').focus();
+</script>
+</body>
+</html>
