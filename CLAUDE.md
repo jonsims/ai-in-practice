@@ -53,7 +53,7 @@ Each maps to a stage of the Tool→Colleague arc and a display state.
 Pure data, no AI. Two charts back-to-back: `role_chart` then `arc_chart`. Predict #1 before reveal.
 
 ### Act 1 — "Portrait of your practice" (Assistant stage)
-AI synthesizes the `teaches` into a Time / Effort / Skill portrait of the room + a closing line. Endpoint: `/api/admin/synthesize/portrait`.
+AI synthesizes the `teaches` into a Time / Effort / Skill portrait of the room (2-3 plain-English sentences per frame, explicitly no jargon — prompt forbids "LLM," "agentic," "tokens," etc.) + a closing line. Runs at 900 max_tokens. Endpoint: `/api/admin/synthesize/portrait`.
 
 ### Act 2 — "The Frontier" (Agent stage)
 AI picks 3 of the most interesting `wishes` and proposes specific agentic workflows that could do them today — naming real tools (Claude Code, MCP servers, NotebookLM, etc.), 3 steps each, with caveats. Endpoint: `/api/admin/synthesize/frontier`.
